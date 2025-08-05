@@ -13,12 +13,12 @@ const Text = React.forwardRef<HTMLElement, TextProps>(
     ref
   ) => {
     const variantClasses = {
-      heading: "text-heading",
-      title: "text-title",
-      subtitle: "text-subtitle",
-      body: "text-body",
-      caption: "text-caption",
-      small: "text-small",
+      heading: "text-heading font-bold text-2xl",
+      title: "text-title font-bold text-xl",
+      subtitle: "text-subtitle font-bold text-lg",
+      body: "text-body text-base",
+      caption: "text-caption text-sm",
+      small: "text-small text-xs",
     };
 
     return (
