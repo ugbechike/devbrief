@@ -3,6 +3,7 @@
 import { Box, Text, ThemeToggle, Button } from "~/components/ui";
 import { useState } from "react";
 import { useOutsideClicks } from "~/hooks/useOutsideClicks";
+import Link from "next/link";
 
 export function Nav() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -32,11 +33,13 @@ export function Nav() {
         className="flex h-16 items-center justify-between"
       >
         {/* Logo */}
-        <Box className="flex items-center space-x-2">
-          <Text variant="heading" className="font-bold text-primary">
-            DevBrief
-          </Text>
-        </Box>
+        <Link href="/">
+          <Box className="flex items-center space-x-2">
+            <Text variant="heading" className="font-bold text-primary">
+              DevBrief
+            </Text>
+          </Box>
+        </Link>
 
         {/* Right side - Theme toggle and Auth buttons */}
         <Box className="flex items-center space-x-4">
@@ -44,10 +47,14 @@ export function Nav() {
 
           {/* Auth buttons - Desktop */}
           <Box className="hidden sm:flex items-center space-x-2">
-            <Button variant="outline" size="sm">
-              Login
-            </Button>
-            <Button size="sm">Sign Up</Button>
+            <Link href="/auth/login">
+              <Button variant="outline" size="sm">
+                Login
+              </Button>
+            </Link>
+            <Link href="/auth/signup">
+              <Button size="sm">Sign Up</Button>
+            </Link>
           </Box>
 
           {/* Mobile menu button */}
