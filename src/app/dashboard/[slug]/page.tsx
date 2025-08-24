@@ -1,10 +1,11 @@
 import React from "react";
 import { Dashboard } from "~/modules/dashboard";
 
-export default function DashboardPage({
+export default async function DashboardPage({
   params,
 }: {
-  params: { slug: string };
+  params: Promise<{ slug: string }>;
 }) {
-  return <Dashboard slug={params.slug} />;
+  const { slug } = await params;
+  return <Dashboard slug={slug} />;
 }
