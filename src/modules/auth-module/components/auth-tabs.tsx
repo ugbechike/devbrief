@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Box, Text, Button } from "~/components/ui";
 import { GoogleAuthButton } from "./google-auth-button";
@@ -8,13 +8,84 @@ import { LoginForm } from "./login-form";
 import { SignupForm } from "./signup-form";
 import type { LoginFormData } from "./login-form";
 import type { SignupFormData } from "./signup-form";
+import supabase from "~/services/supabase";
+import { useMutation } from "@tanstack/react-query";
 
 type TabType = "login" | "signup";
 
 export const AuthTabs = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const checkUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user) {
+        const { data: workspace } = await supabase
+          .from("workspace")
+          .select("slug")
+          .eq("created_by", user.id)
+          .single();
+
+        if (workspace?.slug) {
+          router.replace(`/dashboard/${workspace.slug}`);
+        }
+      }
+    };
+
+    checkUser();
+  }, []);
+
+  const loginMutation = useMutation({
+    mutationFn: async (loginData: LoginFormData) => {
+      const { email, password } = loginData;
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      return { data, error };
+    },
+    onSuccess: async ({ data }) => {
+      if (data.user) {
+        const { data: workspace } = await supabase
+          .from("workspace")
+          .select("slug")
+          .eq("created_by", data.user.id)
+          .single();
+
+        if (workspace?.slug) {
+          router.replace(`/dashboard/${workspace.slug}`);
+        }
+      }
+    },
+    onError: (error) => {
+      console.error(error);
+      router.push("/auth/login");
+    },
+  });
+
+  const signupMutation = useMutation({
+    mutationFn: async (signupData: SignupFormData) => {
+      const { email, password } = signupData;
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      return { data, error };
+    },
+    onSuccess: async ({ data }) => {
+      if (data.user) {
+        router.push("/onboarding");
+      }
+    },
+    onError: (error) => {
+      console.error(error);
+      router.push("/auth/signup");
+    },
+  });
 
   // Determine active tab from URL
   const getActiveTab = (): TabType => {
@@ -26,22 +97,8 @@ export const AuthTabs = () => {
 
   const activeTab = getActiveTab();
 
-  const onLoginSubmit = (data: LoginFormData) => {
-    setIsLoading(true);
-    console.log("Login:", data);
-    setTimeout(() => setIsLoading(false), 2000);
-  };
-
-  const onSignupSubmit = (data: SignupFormData) => {
-    setIsLoading(true);
-    console.log("Signup:", data);
-    setTimeout(() => setIsLoading(false), 2000);
-  };
-
   const handleGoogleAuth = () => {
-    setIsLoading(true);
-    console.log("Google auth clicked");
-    setTimeout(() => setIsLoading(false), 2000);
+    // TODO: Implement Google OAuth
   };
 
   const handleTabClick = (tab: TabType) => {
@@ -69,6 +126,14 @@ export const AuthTabs = () => {
 
         {/* Auth Form Card */}
         <Box variant="card" className="p-8 space-y-6">
+          {(loginMutation.error || signupMutation.error) && (
+            <Box className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+              <Text variant="small" className="text-red-600 text-center">
+                {loginMutation.error?.message || signupMutation.error?.message}
+              </Text>
+            </Box>
+          )}
+
           {/* Tabs */}
           <Box className="flex space-x-1 bg-muted p-1 rounded-lg">
             <Button
@@ -90,7 +155,7 @@ export const AuthTabs = () => {
           </Box>
 
           {/* Google Auth */}
-          <GoogleAuthButton onClick={handleGoogleAuth} disabled={isLoading}>
+          <GoogleAuthButton onClick={handleGoogleAuth} disabled={false}>
             Continue with Google
           </GoogleAuthButton>
 
@@ -111,11 +176,17 @@ export const AuthTabs = () => {
 
           {/* Forms */}
           {activeTab === "login" && (
-            <LoginForm onSubmit={onLoginSubmit} isLoading={isLoading} />
+            <LoginForm
+              onSubmit={loginMutation.mutateAsync}
+              isLoading={loginMutation.isPending}
+            />
           )}
 
           {activeTab === "signup" && (
-            <SignupForm onSubmit={onSignupSubmit} isLoading={isLoading} />
+            <SignupForm
+              onSubmit={signupMutation.mutateAsync}
+              isLoading={signupMutation.isPending}
+            />
           )}
         </Box>
       </Box>

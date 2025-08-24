@@ -6,5 +6,5 @@ export default function DashboardPage({
 }: {
   params: { slug: string };
 }) {
-  return <Dashboard />;
+  return <Dashboard slug={params.slug} />;
 }

@@ -4,9 +4,14 @@ import { Box, Text, ThemeToggle, Button } from "~/components/ui";
 import { useState } from "react";
 import { useOutsideClicks } from "~/hooks/useOutsideClicks";
 import Link from "next/link";
+import { useGetUser } from "~/hooks/useGetUser";
+import supabase from "~/services/supabase";
+import { useRouter } from "next/navigation";
 
-export function Nav() {
+export const Nav = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { data } = useGetUser();
+  const router = useRouter();
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -14,6 +19,12 @@ export function Nav() {
 
   const closeMobileMenu = () => {
     setIsMobileMenuOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    closeMobileMenu();
+    await supabase.auth.signOut();
+    router.push("/");
   };
 
   const mobileMenuRef = useOutsideClicks({
@@ -47,14 +58,27 @@ export function Nav() {
 
           {/* Auth buttons - Desktop */}
           <Box className="hidden sm:flex items-center space-x-2">
-            <Link href="/auth/login">
-              <Button variant="outline" size="sm">
-                Login
-              </Button>
-            </Link>
-            <Link href="/auth/signup">
-              <Button size="sm">Sign Up</Button>
-            </Link>
+            {data?.user ? (
+              <Box className="flex items-center space-x-2">
+                <Text variant="small" className="text-muted-foreground">
+                  {data.user.email}
+                </Text>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
+                  Sign Out
+                </Button>
+              </Box>
+            ) : (
+              <>
+                <Link href="/auth/login">
+                  <Button variant="outline" size="sm">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/auth/signup">
+                  <Button size="sm">Sign Up</Button>
+                </Link>
+              </>
+            )}
           </Box>
 
           {/* Mobile menu button */}
@@ -91,14 +115,18 @@ export function Nav() {
         <Box className="sm:hidden border-t border-border bg-background/95 backdrop-blur animate-in slide-in-from-top-2 duration-200">
           <Box variant="container-xl" className="py-4 space-y-4">
             <Box className="flex flex-col space-y-2">
-              <Button variant="outline" className="w-full justify-start">
-                Login
-              </Button>
-              <Button className="w-full justify-start">Sign Up</Button>
+              <Link href="/auth/login">
+                <Button variant="outline" className="w-full justify-start">
+                  Login
+                </Button>
+              </Link>
+              <Link href="/auth/signup">
+                <Button className="w-full justify-start">Sign Up</Button>
+              </Link>
             </Box>
           </Box>
         </Box>
       )}
     </Box>
   );
-}
+};
