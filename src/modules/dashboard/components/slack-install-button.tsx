@@ -31,7 +31,7 @@ export const SlackInstallButton: React.FC<SlackInstallButtonProps> = ({
         },
         body: JSON.stringify({
           workspaceSlug,
-          userId: "U09BS5MHZ8V", // Test user ID - you can change this
+          userId: "U098UNC665B",
           prSummary:
             "🚀 Test PR Summary: This is a test message from DevBrief!",
         }),
