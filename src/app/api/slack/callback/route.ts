@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import supabase from '~/services/supabase';
+import { supabaseAdmin } from '~/services/supabase';
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Store the Slack installation data in your database
-        const { error: dbError } = await supabase
+        const { error: dbError } = await supabaseAdmin
             .from('slack_installations')
             .upsert({
                 workspace_slug: state,
