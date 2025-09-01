@@ -125,6 +125,22 @@ export async function POST(request: NextRequest) {
             const { event: slackEvent } = event;
             console.log('Processing Slack event:', slackEvent.type, slackEvent);
 
+            // Log all event types we receive for debugging
+            if (slackEvent.type === 'message') {
+                console.log('=== MESSAGE EVENT DEBUG ===');
+                console.log('Message event details:', {
+                    type: slackEvent.type,
+                    user: slackEvent.user,
+                    channel: slackEvent.channel,
+                    channel_type: slackEvent.channel_type,
+                    text: slackEvent.text,
+                    subtype: slackEvent.subtype,
+                    bot_id: slackEvent.bot_id,
+                    event_ts: slackEvent.event_ts
+                });
+                console.log('=== END MESSAGE DEBUG ===');
+            }
+
             // Get workspace slug from team_id
             const { data: installation, error: installError } = await supabaseAdmin
                 .from('slack_installations')
@@ -143,6 +159,14 @@ export async function POST(request: NextRequest) {
             }
 
             console.log('Found installation for workspace:', installation.workspace_slug);
+            console.log('Received event===:', {
+                user: slackEvent.user,
+                channel_type: slackEvent.channel_type,
+                text: slackEvent.text,
+                channel: slackEvent.channel,
+                subtype: slackEvent.subtype,
+                bot_id: slackEvent.bot_id
+            });
 
             // Handle different event types
             switch (slackEvent.type) {
@@ -157,8 +181,12 @@ export async function POST(request: NextRequest) {
                         .eq('slack_user_id', slackEvent.user)
                         .single();
 
+                    console.log('User data from DB:', userData);
+
                     const hasGitHubEmail = userData?.github_email;
                     const isFirstTime = !userData?.first_interaction_at;
+
+                    console.log('Welcome message decision:', { hasGitHubEmail, isFirstTime, shouldSend: isFirstTime || !hasGitHubEmail });
 
                     // Only send welcome message if it's the first time or if they don't have GitHub email
                     if (isFirstTime || !hasGitHubEmail) {
@@ -226,12 +254,21 @@ This helps me send you personalized PR summaries for your weekly updates!`;
                     break;
 
                 case 'message':
+                    console.log('=== MESSAGE EVENT PROCESSING ===');
                     console.log('Received message event:', {
                         user: slackEvent.user,
                         channel_type: slackEvent.channel_type,
                         text: slackEvent.text,
-                        channel: slackEvent.channel
+                        channel: slackEvent.channel,
+                        subtype: slackEvent.subtype,
+                        bot_id: slackEvent.bot_id
                     });
+
+                    // Check if this is a bot message (we should ignore these)
+                    if (slackEvent.bot_id) {
+                        console.log('Ignoring bot message from bot_id:', slackEvent.bot_id);
+                        break;
+                    }
 
                     // Only process if it's a DM to the bot
                     if (slackEvent.channel_type === 'im') {
@@ -293,7 +330,10 @@ Your GitHub email \`${githubEmail}\` has been saved. You'll now receive PR summa
                                 console.log(`Stored user mapping for ${dmUserInfo.profile.email}`);
                             }
                         }
+                    } else {
+                        console.log('Not a DM message, channel_type:', slackEvent.channel_type);
                     }
+                    console.log('=== END MESSAGE PROCESSING ===');
                     break;
 
                 case 'team_join':
@@ -306,7 +346,10 @@ Your GitHub email \`${githubEmail}\` has been saved. You'll now receive PR summa
                     break;
 
                 default:
+                    console.log('=== UNHANDLED EVENT ===');
                     console.log('Unhandled event type:', slackEvent.type);
+                    console.log('Event data:', slackEvent);
+                    console.log('=== END UNHANDLED EVENT ===');
                     break;
             }
         }
