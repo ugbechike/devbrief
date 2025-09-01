@@ -171,10 +171,62 @@ export async function POST(request: NextRequest) {
                     // Only process if it's a DM to the bot
                     if (slackEvent.channel_type === 'im') {
                         console.log('Received DM from user:', slackEvent.user);
-                        const dmUserInfo = await getUserInfo(slackEvent.user, installation.access_token);
-                        if (dmUserInfo && dmUserInfo.profile?.email) {
-                            await storeUserMapping(installation.workspace_slug, dmUserInfo);
-                            console.log(`Stored user mapping for ${dmUserInfo.profile.email}`);
+
+                        // Check if this is a GitHub email message
+                        const messageText = slackEvent.text?.toLowerCase() || '';
+
+                        // First try to match with GitHub-specific phrases
+                        let emailMatch = messageText.match(/(?:github email is|my github email is|github:)\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+
+                        // If no match, try to match standalone email (but be more careful)
+                        if (!emailMatch) {
+                            // Only match standalone email if the message is short and looks like just an email
+                            const trimmedText = messageText.trim();
+                            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+                            if (emailRegex.test(trimmedText) && trimmedText.length < 100) {
+                                emailMatch = [trimmedText, trimmedText]; // Create match array with email as both full match and capture group
+                            }
+                        }
+
+                        if (emailMatch) {
+                            const githubEmail = emailMatch[1];
+                            console.log('Found GitHub email:', githubEmail);
+
+                            // Update user with GitHub email
+                            const { error: updateError } = await supabaseAdmin
+                                .from('slack_users')
+                                .update({ github_email: githubEmail })
+                                .eq('workspace_slug', installation.workspace_slug)
+                                .eq('slack_user_id', slackEvent.user);
+
+                            if (updateError) {
+                                console.error('Error updating GitHub email:', updateError);
+                            } else {
+                                console.log('Updated GitHub email for user:', slackEvent.user);
+
+                                // Send confirmation message
+                                await fetch('https://slack.com/api/chat.postMessage', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Authorization': `Bearer ${installation.access_token}`,
+                                        'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                        channel: slackEvent.channel,
+                                        text: `✅ **GitHub email saved!**
+
+Your GitHub email \`${githubEmail}\` has been saved. You'll now receive PR summaries for your weekly updates!`,
+                                    }),
+                                });
+                            }
+                        } else {
+                            // Regular user mapping (existing logic)
+                            const dmUserInfo = await getUserInfo(slackEvent.user, installation.access_token);
+                            if (dmUserInfo && dmUserInfo.profile?.email) {
+                                await storeUserMapping(installation.workspace_slug, dmUserInfo);
+                                console.log(`Stored user mapping for ${dmUserInfo.profile.email}`);
+                            }
                         }
                     }
                     break;
