@@ -48,28 +48,59 @@ async function getUserInfo(userId: string, accessToken: string) {
 // Store user mapping in database
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function storeUserMapping(workspaceSlug: string, userInfo: any) {
-    const { error } = await supabaseAdmin
+    // First check if user already exists
+    const { data: existingUser } = await supabaseAdmin
         .from('slack_users')
-        .upsert({
-            workspace_slug: workspaceSlug,
-            slack_user_id: userInfo.id,
-            email: userInfo.profile?.email || '',
-            real_name: userInfo.real_name || '',
-            display_name: userInfo.profile?.display_name || '',
-            last_interaction_at: new Date().toISOString(),
-        }, {
-            onConflict: 'workspace_slug,slack_user_id'
-        });
+        .select('id')
+        .eq('workspace_slug', workspaceSlug)
+        .eq('slack_user_id', userInfo.id)
+        .single();
 
-    if (error) {
-        console.error('Error storing user mapping:', error);
+    if (existingUser) {
+        // Update existing user
+        const { error } = await supabaseAdmin
+            .from('slack_users')
+            .update({
+                email: userInfo.profile?.email || '',
+                real_name: userInfo.real_name || '',
+                display_name: userInfo.profile?.display_name || '',
+                last_interaction_at: new Date().toISOString(),
+            })
+            .eq('id', existingUser.id);
+
+        if (error) {
+            console.error('Error updating user mapping:', error);
+        } else {
+            console.log('Updated existing user mapping');
+        }
+    } else {
+        // Insert new user
+        const { error } = await supabaseAdmin
+            .from('slack_users')
+            .insert({
+                workspace_slug: workspaceSlug,
+                slack_user_id: userInfo.id,
+                email: userInfo.profile?.email || '',
+                real_name: userInfo.real_name || '',
+                display_name: userInfo.profile?.display_name || '',
+                first_interaction_at: new Date().toISOString(),
+                last_interaction_at: new Date().toISOString(),
+            });
+
+        if (error) {
+            console.error('Error inserting user mapping:', error);
+        } else {
+            console.log('Inserted new user mapping');
+        }
     }
 }
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.text();
-        console.log('Received Slack event:', body);
+        console.log('=== MAIN EVENTS ENDPOINT RECEIVED ===');
+        console.log('Headers:', Object.fromEntries(request.headers.entries()));
+        console.log('Body:', body);
 
         // For URL verification, we don't need to verify signature
         const event = JSON.parse(body);
@@ -92,44 +123,73 @@ export async function POST(request: NextRequest) {
         // Handle events
         if (event.type === 'event_callback') {
             const { event: slackEvent } = event;
+            console.log('Processing Slack event:', slackEvent.type, slackEvent);
 
             // Get workspace slug from team_id
-            const { data: installation } = await supabaseAdmin
+            const { data: installation, error: installError } = await supabaseAdmin
                 .from('slack_installations')
                 .select('workspace_slug, access_token')
                 .eq('team_id', event.team_id)
                 .single();
+
+            if (installError) {
+                console.error('Error fetching installation:', installError);
+                return NextResponse.json({ error: 'Database error' }, { status: 500 });
+            }
 
             if (!installation) {
                 console.error('No Slack installation found for team:', event.team_id);
                 return NextResponse.json({ error: 'Installation not found' }, { status: 404 });
             }
 
+            console.log('Found installation for workspace:', installation.workspace_slug);
+
             // Handle different event types
             switch (slackEvent.type) {
                 case 'app_home_opened':
-                case 'app_mention':
-                case 'message':
-                    // Only process if it's a DM to the bot or app mention
-                    if (slackEvent.type === 'message' && slackEvent.channel_type !== 'im') {
-                        break; // Skip non-DM messages
-                    }
-
+                    console.log('User opened app home:', slackEvent.user);
                     // Get user info and store mapping
                     const userInfo = await getUserInfo(slackEvent.user, installation.access_token);
                     if (userInfo && userInfo.profile?.email) {
                         await storeUserMapping(installation.workspace_slug, userInfo);
                         console.log(`Stored user mapping for ${userInfo.profile.email}`);
+                    } else {
+                        console.log('No email found for user:', userInfo);
+                    }
+                    break;
+
+                case 'app_mention':
+                    console.log('App mentioned by user:', slackEvent.user);
+                    const mentionUserInfo = await getUserInfo(slackEvent.user, installation.access_token);
+                    if (mentionUserInfo && mentionUserInfo.profile?.email) {
+                        await storeUserMapping(installation.workspace_slug, mentionUserInfo);
+                        console.log(`Stored user mapping for ${mentionUserInfo.profile.email}`);
+                    }
+                    break;
+
+                case 'message':
+                    // Only process if it's a DM to the bot
+                    if (slackEvent.channel_type === 'im') {
+                        console.log('Received DM from user:', slackEvent.user);
+                        const dmUserInfo = await getUserInfo(slackEvent.user, installation.access_token);
+                        if (dmUserInfo && dmUserInfo.profile?.email) {
+                            await storeUserMapping(installation.workspace_slug, dmUserInfo);
+                            console.log(`Stored user mapping for ${dmUserInfo.profile.email}`);
+                        }
                     }
                     break;
 
                 case 'team_join':
-                    // New user joined workspace
+                    console.log('New user joined team:', slackEvent.user);
                     const newUserInfo = await getUserInfo(slackEvent.user.id, installation.access_token);
                     if (newUserInfo && newUserInfo.profile?.email) {
                         await storeUserMapping(installation.workspace_slug, newUserInfo);
                         console.log(`Stored new user mapping for ${newUserInfo.profile.email}`);
                     }
+                    break;
+
+                default:
+                    console.log('Unhandled event type:', slackEvent.type);
                     break;
             }
         }
