@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     // Construct Slack OAuth URL
     const slackOAuthUrl = new URL('https://slack.com/oauth/v2/authorize');
     slackOAuthUrl.searchParams.set('client_id', slackClientId);
-    slackOAuthUrl.searchParams.set('scope', 'chat:write,channels:read,users:read,users:read.email');
+    slackOAuthUrl.searchParams.set('scope', 'chat:write,channels:read,users:read,users:read.email,im:history');
     slackOAuthUrl.searchParams.set('redirect_uri', redirectUri);
     slackOAuthUrl.searchParams.set('state', workspaceSlug); // Pass workspace slug in state
 
