@@ -8,7 +8,14 @@ function verifySlackRequest(request: NextRequest, body: string): boolean {
     const timestamp = request.headers.get('x-slack-request-timestamp');
     const signingSecret = process.env.SLACK_SIGNING_SECRET;
 
+    console.log('Verifying request:', {
+        hasSignature: !!signature,
+        hasTimestamp: !!timestamp,
+        hasSigningSecret: !!signingSecret
+    });
+
     if (!signature || !timestamp || !signingSecret) {
+        console.log('Missing required headers or signing secret');
         return false;
     }
 
@@ -62,17 +69,24 @@ async function storeUserMapping(workspaceSlug: string, userInfo: any) {
 export async function POST(request: NextRequest) {
     try {
         const body = await request.text();
+        console.log('Received Slack event:', body);
 
-        // Verify request is from Slack
-        if (!verifySlackRequest(request, body)) {
-            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-        }
-
+        // For URL verification, we don't need to verify signature
         const event = JSON.parse(body);
 
         // Handle URL verification challenge
         if (event.type === 'url_verification') {
+            console.log('Handling URL verification challenge:', event.challenge);
             return NextResponse.json({ challenge: event.challenge });
+        }
+
+        // For actual events, verify request is from Slack
+        if (!verifySlackRequest(request, body)) {
+            console.log('Invalid signature - headers:', {
+                signature: request.headers.get('x-slack-signature'),
+                timestamp: request.headers.get('x-slack-request-timestamp')
+            });
+            return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
         }
 
         // Handle events
