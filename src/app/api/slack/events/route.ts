@@ -148,7 +148,59 @@ export async function POST(request: NextRequest) {
             switch (slackEvent.type) {
                 case 'app_home_opened':
                     console.log('User opened app home:', slackEvent.user);
-                    // Get user info and store mapping
+
+                    // Check if user has provided GitHub email
+                    const { data: userData } = await supabaseAdmin
+                        .from('slack_users')
+                        .select('github_email')
+                        .eq('workspace_slug', installation.workspace_slug)
+                        .eq('slack_user_id', slackEvent.user)
+                        .single();
+
+                    const hasGitHubEmail = userData?.github_email;
+
+                    // Create welcome message
+                    const welcomeMessage = hasGitHubEmail
+                        ? `✅ **Welcome back to Tallylog!**
+
+Your GitHub email is set to: \`${userData.github_email}\`
+
+You'll receive PR summaries for your weekly updates. If you need to update your email, please contact your admin.`
+                        : `🚀 **Welcome to Tallylog!**
+
+I'll help you with weekly and daily updates by sending you concise PR summaries via DM.
+
+**To get started, please reply with your GitHub email:**
+"My GitHub email is your-email@example.com"
+
+This helps me send you personalized PR summaries for your weekly updates!`;
+
+                    // Send welcome message as DM
+                    const response = await fetch('https://slack.com/api/chat.postMessage', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${installation.access_token}`,
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            channel: slackEvent.user,
+                            text: welcomeMessage,
+                            blocks: [
+                                {
+                                    type: 'section',
+                                    text: {
+                                        type: 'mrkdwn',
+                                        text: welcomeMessage,
+                                    },
+                                },
+                            ],
+                        }),
+                    });
+
+                    const result = await response.json();
+                    console.log('Welcome message sent:', result);
+
+                    // Also store user mapping (existing logic)
                     const userInfo = await getUserInfo(slackEvent.user, installation.access_token);
                     if (userInfo && userInfo.profile?.email) {
                         await storeUserMapping(installation.workspace_slug, userInfo);
