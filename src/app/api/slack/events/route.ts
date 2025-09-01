@@ -276,9 +276,10 @@ This helps me send you personalized PR summaries for your weekly updates!`;
 
                         // Check if this is a GitHub email message
                         const messageText = slackEvent.text?.toLowerCase() || '';
+                        console.log('Processing message text:', messageText);
 
-                        // First try to match with GitHub-specific phrases
-                        let emailMatch = messageText.match(/(?:github email is|my github email is|github:)\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+                        // First try to match with GitHub-specific phrases (including Slack link format)
+                        let emailMatch = messageText.match(/(?:github email is|my github email is|github:)\s*(?:<mailto:)?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})(?:\|[^>]*>)?/i);
 
                         // If no match, try to match standalone email (but be more careful)
                         if (!emailMatch) {
@@ -290,6 +291,8 @@ This helps me send you personalized PR summaries for your weekly updates!`;
                                 emailMatch = [trimmedText, trimmedText]; // Create match array with email as both full match and capture group
                             }
                         }
+
+                        console.log('Email match result:', emailMatch);
 
                         if (emailMatch) {
                             const githubEmail = emailMatch[1];
