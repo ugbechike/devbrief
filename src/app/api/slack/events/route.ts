@@ -152,21 +152,24 @@ export async function POST(request: NextRequest) {
                     // Check if user has provided GitHub email
                     const { data: userData } = await supabaseAdmin
                         .from('slack_users')
-                        .select('github_email')
+                        .select('github_email, first_interaction_at')
                         .eq('workspace_slug', installation.workspace_slug)
                         .eq('slack_user_id', slackEvent.user)
                         .single();
 
                     const hasGitHubEmail = userData?.github_email;
+                    const isFirstTime = !userData?.first_interaction_at;
 
-                    // Create welcome message
-                    const welcomeMessage = hasGitHubEmail
-                        ? `✅ **Welcome back to Tallylog!**
+                    // Only send welcome message if it's the first time or if they don't have GitHub email
+                    if (isFirstTime || !hasGitHubEmail) {
+                        // Create welcome message
+                        const welcomeMessage = hasGitHubEmail
+                            ? `✅ **Welcome back to Tallylog!**
 
 Your GitHub email is set to: \`${userData.github_email}\`
 
 You'll receive PR summaries for your weekly updates. If you need to update your email, please contact your admin.`
-                        : `🚀 **Welcome to Tallylog!**
+                            : `🚀 **Welcome to Tallylog!**
 
 I'll help you with weekly and daily updates by sending you concise PR summaries via DM.
 
@@ -175,30 +178,33 @@ I'll help you with weekly and daily updates by sending you concise PR summaries 
 
 This helps me send you personalized PR summaries for your weekly updates!`;
 
-                    // Send welcome message as DM
-                    const response = await fetch('https://slack.com/api/chat.postMessage', {
-                        method: 'POST',
-                        headers: {
-                            'Authorization': `Bearer ${installation.access_token}`,
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            channel: slackEvent.user,
-                            text: welcomeMessage,
-                            blocks: [
-                                {
-                                    type: 'section',
-                                    text: {
-                                        type: 'mrkdwn',
-                                        text: welcomeMessage,
+                        // Send welcome message as DM
+                        const response = await fetch('https://slack.com/api/chat.postMessage', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${installation.access_token}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                channel: slackEvent.user,
+                                text: welcomeMessage,
+                                blocks: [
+                                    {
+                                        type: 'section',
+                                        text: {
+                                            type: 'mrkdwn',
+                                            text: welcomeMessage,
+                                        },
                                     },
-                                },
-                            ],
-                        }),
-                    });
+                                ],
+                            }),
+                        });
 
-                    const result = await response.json();
-                    console.log('Welcome message sent:', result);
+                        const result = await response.json();
+                        console.log('Welcome message sent:', result);
+                    } else {
+                        console.log('User already has GitHub email, skipping welcome message');
+                    }
 
                     // Also store user mapping (existing logic)
                     const userInfo = await getUserInfo(slackEvent.user, installation.access_token);
@@ -220,9 +226,16 @@ This helps me send you personalized PR summaries for your weekly updates!`;
                     break;
 
                 case 'message':
+                    console.log('Received message event:', {
+                        user: slackEvent.user,
+                        channel_type: slackEvent.channel_type,
+                        text: slackEvent.text,
+                        channel: slackEvent.channel
+                    });
+
                     // Only process if it's a DM to the bot
                     if (slackEvent.channel_type === 'im') {
-                        console.log('Received DM from user:', slackEvent.user);
+                        console.log('Processing DM from user:', slackEvent.user);
 
                         // Check if this is a GitHub email message
                         const messageText = slackEvent.text?.toLowerCase() || '';
