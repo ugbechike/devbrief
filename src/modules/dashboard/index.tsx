@@ -9,6 +9,8 @@ import {
   MonitoredRepos,
   SlackInstallButton,
 } from "./components";
+import { GitHubInstallButton as NewGitHubInstallButton } from "./components/github-install-button";
+import { RepoSearch as NewRepoSearch } from "./components/repo-search";
 import { useQuery } from "@tanstack/react-query";
 import supabase from "~/services/supabase";
 import { SlackService } from "~/services/slack";
@@ -71,14 +73,22 @@ export const Dashboard = ({ slug }: { slug: string }) => {
     enabled: !!decodedSlug,
   });
 
-  // Handle URL parameters for Slack installation status
+  // Handle URL parameters for Slack and GitHub installation status
   useEffect(() => {
     const slackInstalledParam = searchParams.get("slack_installed");
+    const githubInstalledParam = searchParams.get("github_installed");
     const errorParam = searchParams.get("error");
+    const githubErrorParam = searchParams.get("github_error");
 
     if (slackInstalledParam === "true") {
       setSlackInstalled(true);
       setSlackError(undefined); // Clear any previous errors
+      // Clean up URL parameters
+      router.replace(`/dashboard/${decodedSlug}`);
+    }
+
+    if (githubInstalledParam === "true") {
+      setGitHubInstalled(true);
       // Clean up URL parameters
       router.replace(`/dashboard/${decodedSlug}`);
     }
@@ -113,6 +123,13 @@ export const Dashboard = ({ slug }: { slug: string }) => {
       // Clean up URL parameters
       router.replace(`/dashboard/${decodedSlug}`);
     }
+
+    if (githubErrorParam) {
+      console.error("GitHub installation error:", githubErrorParam);
+      // You can add GitHub error handling here if needed
+      // Clean up URL parameters
+      router.replace(`/dashboard/${decodedSlug}`);
+    }
   }, [searchParams, router, decodedSlug]);
 
   // Update Slack installation state when data changes
@@ -123,8 +140,11 @@ export const Dashboard = ({ slug }: { slug: string }) => {
   }, [slackInstalledData]);
 
   const handleGitHubInstall = () => {
-    // In real implementation, this would redirect to GitHub OAuth
-    setGitHubInstalled(true);
+    // Redirect to GitHub App installation
+    const installUrl = `/api/github/install?workspace_slug=${encodeURIComponent(
+      decodedSlug
+    )}`;
+    router.push(installUrl);
   };
 
   const handleSlackInstall = () => {
@@ -164,10 +184,7 @@ export const Dashboard = ({ slug }: { slug: string }) => {
         />
 
         <Box className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-          <GitHubInstallButton
-            isInstalled={githubInstalled}
-            onInstall={handleGitHubInstall}
-          />
+          <NewGitHubInstallButton workspaceSlug={decodedSlug} />
           <SlackInstallButton
             isInstalled={slackInstalled}
             onInstall={handleSlackInstall}
@@ -176,42 +193,9 @@ export const Dashboard = ({ slug }: { slug: string }) => {
           />
         </Box>
 
-        {githubInstalled && (
-          <Box className="space-y-8">
-            <RepoSearch onAddRepo={handleAddRepo} />
-            <MonitoredRepos
-              repos={monitoredRepos}
-              onRemoveRepo={handleRemoveRepo}
-            />
-          </Box>
-        )}
-
-        {!githubInstalled && (
-          <Box className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-8 text-center">
-            <Box className="w-16 h-16 bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-blue-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </Box>
-            <Text variant="title" className="text-blue-100 font-semibold mb-2">
-              Get Started with Repository Monitoring
-            </Text>
-            <Text variant="body" className="text-blue-200 mb-4">
-              Install the GitHub app above to start monitoring your repositories
-              and receive updates
-            </Text>
-          </Box>
-        )}
+        <Box className="space-y-8">
+          <NewRepoSearch workspaceSlug={decodedSlug} />
+        </Box>
       </Box>
     </Box>
   );
