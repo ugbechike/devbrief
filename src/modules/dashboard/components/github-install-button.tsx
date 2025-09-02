@@ -21,6 +21,8 @@ export function GitHubInstallButton({
     queryFn: () => GitHubService.isInstalled(workspaceSlug),
     staleTime: 10000,
     enabled: !!workspaceSlug,
+    retry: false, // Don't retry on failure
+    refetchOnWindowFocus: false, // Don't refetch when window gains focus
   });
 
   const handleGitHubInstall = async () => {

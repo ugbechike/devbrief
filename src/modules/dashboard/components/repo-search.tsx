@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "~/components/ui/Button";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -19,9 +19,13 @@ interface Repository {
 
 interface RepoSearchProps {
   workspaceSlug: string;
+  isGitHubInstalled: boolean;
 }
 
-export function RepoSearch({ workspaceSlug }: RepoSearchProps) {
+export function RepoSearch({
+  workspaceSlug,
+  isGitHubInstalled,
+}: RepoSearchProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState<"user" | "search">("user");
   const queryClient = useQueryClient();
@@ -38,6 +42,7 @@ export function RepoSearch({ workspaceSlug }: RepoSearchProps) {
         const data = await response.json();
         return data.repositories || [];
       },
+      enabled: isGitHubInstalled, // Only fetch if GitHub is installed
     }
   );
 
@@ -62,8 +67,9 @@ export function RepoSearch({ workspaceSlug }: RepoSearchProps) {
       return data.repositories || [];
     },
     enabled:
-      searchType === "user" ||
-      (searchType === "search" && searchQuery.length > 0),
+      isGitHubInstalled &&
+      (searchType === "user" ||
+        (searchType === "search" && searchQuery.length > 0)),
   });
 
   // Monitor/unmonitor repository
@@ -106,6 +112,18 @@ export function RepoSearch({ workspaceSlug }: RepoSearchProps) {
       isMonitored: !currentlyMonitored,
     });
   };
+
+  // Don't render anything if GitHub isn't installed
+  if (!isGitHubInstalled) {
+    return (
+      <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+        <p className="text-gray-600">
+          Install GitHub App to start monitoring repositories and receiving PR
+          summaries.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

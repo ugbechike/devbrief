@@ -1,19 +1,14 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Box, Text } from "~/components/ui";
-import {
-  DashboardHeader,
-  GitHubInstallButton,
-  RepoSearch,
-  MonitoredRepos,
-  SlackInstallButton,
-} from "./components";
+import { Box } from "~/components/ui";
+import { DashboardHeader, SlackInstallButton } from "./components";
 import { GitHubInstallButton as NewGitHubInstallButton } from "./components/github-install-button";
 import { RepoSearch as NewRepoSearch } from "./components/repo-search";
 import { useQuery } from "@tanstack/react-query";
 import supabase from "~/services/supabase";
 import { SlackService } from "~/services/slack";
+import { GitHubService } from "~/services/github";
 
 const mockRepos = [
   {
@@ -40,17 +35,26 @@ export const Dashboard = ({ slug }: { slug: string }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Mock state - in real implementation this would come from API/database
-  const [githubInstalled, setGitHubInstalled] = useState(false);
+  // State management
   const [slackInstalled, setSlackInstalled] = useState(false);
   const [slackError, setSlackError] = useState<string | undefined>();
-  const [monitoredRepos, setMonitoredRepos] = useState(mockRepos);
+  // const [monitoredRepos, setMonitoredRepos] = useState(mockRepos);
   const decodedSlug = decodeURIComponent(slug);
+
+  // Check GitHub installation status
+  const { data: githubInstalled = false } = useQuery({
+    queryKey: ["github-installation", decodedSlug],
+    queryFn: () => GitHubService.isInstalled(decodedSlug),
+    staleTime: 10000,
+    enabled: !!decodedSlug,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
   const { data: workspaceData } = useQuery({
     queryKey: ["workspace", decodedSlug],
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("workspace")
         .select("*")
         .eq("slug", decodedSlug)
@@ -88,7 +92,6 @@ export const Dashboard = ({ slug }: { slug: string }) => {
     }
 
     if (githubInstalledParam === "true") {
-      setGitHubInstalled(true);
       // Clean up URL parameters
       router.replace(`/dashboard/${decodedSlug}`);
     }
@@ -139,39 +142,12 @@ export const Dashboard = ({ slug }: { slug: string }) => {
     }
   }, [slackInstalledData]);
 
-  const handleGitHubInstall = () => {
-    // Redirect to GitHub App installation
-    const installUrl = `/api/github/install?workspace_slug=${encodeURIComponent(
-      decodedSlug
-    )}`;
-    router.push(installUrl);
-  };
-
   const handleSlackInstall = () => {
     // Redirect to Slack OAuth installation
     const installUrl = `/api/slack/install?workspace=${encodeURIComponent(
       decodedSlug
     )}`;
     router.push(installUrl);
-  };
-
-  const handleAddRepo = (repo: {
-    name: string;
-    fullName: string;
-    description: string;
-  }) => {
-    const newRepo = {
-      id: Date.now().toString(),
-      ...repo,
-      language: "Unknown",
-      lastActivity: "Just now",
-      status: "active" as const,
-    };
-    setMonitoredRepos([...monitoredRepos, newRepo]);
-  };
-
-  const handleRemoveRepo = (repoId: string) => {
-    setMonitoredRepos(monitoredRepos.filter((repo) => repo.id !== repoId));
   };
 
   return (
@@ -194,7 +170,10 @@ export const Dashboard = ({ slug }: { slug: string }) => {
         </Box>
 
         <Box className="space-y-8">
-          <NewRepoSearch workspaceSlug={decodedSlug} />
+          <NewRepoSearch
+            workspaceSlug={decodedSlug}
+            isGitHubInstalled={githubInstalled}
+          />
         </Box>
       </Box>
     </Box>
