@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
         }
 
         if (isMonitored) {
-            // Add repository to monitoring
+            // Add repository to monitoring using upsert
             const { error: insertError } = await supabaseAdmin
                 .from('repos')
                 .upsert({

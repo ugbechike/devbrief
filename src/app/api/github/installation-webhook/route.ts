@@ -96,7 +96,7 @@ async function handleInstallationCreated(payload: any) {
         return;
     }
 
-    // Update or create GitHub installation record
+    // Update or create GitHub installation record using upsert
     const { error: upsertError } = await supabaseAdmin
         .from('github_installations')
         .upsert({

@@ -19,7 +19,8 @@ export function GitHubInstallButton({
   const { data: isInstalled, isLoading } = useQuery({
     queryKey: ["github-installation", workspaceSlug],
     queryFn: () => GitHubService.isInstalled(workspaceSlug),
-    refetchInterval: 5000, // Check every 5 seconds
+    staleTime: 10000,
+    enabled: !!workspaceSlug,
   });
 
   const handleGitHubInstall = async () => {

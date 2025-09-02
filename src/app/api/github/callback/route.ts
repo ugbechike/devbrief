@@ -4,7 +4,6 @@ import { supabaseAdmin } from '~/services/supabase';
 export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
-        const installation_id = searchParams.get('installation_id');
         const setup_action = searchParams.get('setup_action');
         const state = searchParams.get('state'); // This is our workspace_slug
 
@@ -16,6 +15,7 @@ export async function GET(request: NextRequest) {
         // Instead, we'll store a placeholder and update it when we receive webhook events
         if (setup_action === 'install') {
             // Store GitHub App installation in database
+            // Store GitHub App installation using upsert
             const { error: insertError } = await supabaseAdmin
                 .from('github_installations')
                 .upsert({
@@ -25,7 +25,6 @@ export async function GET(request: NextRequest) {
                     github_email: null, // Will be updated from webhook
                     access_token: null, // Not needed for GitHub App
                     installation_id: null, // Will be updated from webhook
-                    created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString(),
                 }, {
                     onConflict: 'workspace_slug'
