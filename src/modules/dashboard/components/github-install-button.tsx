@@ -28,7 +28,9 @@ export function GitHubInstallButton({
   const handleGitHubInstall = async () => {
     setIsInstalling(true);
     try {
-      window.location.href = `/api/github/install?workspace_slug=${workspaceSlug}`;
+      window.location.href = `/api/github/install?workspace_slug=${encodeURIComponent(
+        workspaceSlug
+      )}`;
     } catch (error) {
       console.error("GitHub install error:", error);
       setIsInstalling(false);

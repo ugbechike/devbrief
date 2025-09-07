@@ -5,7 +5,12 @@ export async function GET(request: NextRequest) {
     try {
         const { searchParams } = new URL(request.url);
         const setup_action = searchParams.get('setup_action');
-        const state = searchParams.get('state'); // This is our workspace_slug
+        const rawState = searchParams.get('state'); // This is our workspace_slug
+        // Properly decode the state parameter to handle + characters
+        const state = rawState ? decodeURIComponent(rawState.replace(/\+/g, '%2B')) : null;
+
+        console.log('GitHub callback - Raw state:', rawState);
+        console.log('GitHub callback - Decoded state:', state);
 
         if (!state) {
             return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/dashboard?github_error=missing_state`);

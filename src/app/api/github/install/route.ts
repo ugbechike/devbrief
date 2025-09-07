@@ -9,6 +9,9 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Workspace slug is required' }, { status: 400 });
         }
 
+        console.log('GitHub install - Workspace slug:', workspaceSlug);
+        console.log('GitHub install - Encoded state:', encodeURIComponent(workspaceSlug));
+
         const githubAppId = process.env.GITHUB_APP_ID;
         if (!githubAppId) {
             return NextResponse.json({ error: 'GitHub App ID not configured' }, { status: 500 });
@@ -16,7 +19,8 @@ export async function GET(request: NextRequest) {
 
         // Construct GitHub App installation URL
         const githubInstallUrl = new URL('https://github.com/apps/tallylog/installations/new');
-        githubInstallUrl.searchParams.set('state', workspaceSlug); // Pass workspace slug in state
+        // Properly encode the workspace slug to handle + characters
+        githubInstallUrl.searchParams.set('state', encodeURIComponent(workspaceSlug));
 
         return NextResponse.redirect(githubInstallUrl.toString());
     } catch (error) {
