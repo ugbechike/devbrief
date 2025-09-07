@@ -12,17 +12,26 @@ export class SlackService {
      * Get Slack installation data for a workspace
      */
     static async getInstallation(workspaceSlug: string) {
-        const { data, error } = await supabase
-            .from('slack_installations')
-            .select('*')
-            .eq('workspace_slug', workspaceSlug)
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('slack_installations')
+                .select('*')
+                .eq('workspace_slug', workspaceSlug)
+                .single();
 
-        if (error) {
-            throw new Error(`Failed to get Slack installation: ${error.message}`);
+            if (error) {
+                // Don't log errors for missing installations - this is normal
+                if (error.code !== 'PGRST116') {
+                    console.error('Error fetching Slack installation:', error);
+                }
+                return null;
+            }
+
+            return data;
+        } catch (error) {
+            console.error('SlackService.getInstallation error:', error);
+            return null;
         }
-
-        return data;
     }
 
     /**
@@ -30,6 +39,10 @@ export class SlackService {
      */
     static async sendMessage(workspaceSlug: string, message: SlackMessage) {
         const installation = await this.getInstallation(workspaceSlug);
+
+        if (!installation) {
+            throw new Error('Slack is not installed for this workspace');
+        }
 
         const response = await fetch('https://slack.com/api/chat.postMessage', {
             method: 'POST',
@@ -88,11 +101,7 @@ export class SlackService {
      * Check if Slack is installed for a workspace
      */
     static async isInstalled(workspaceSlug: string): Promise<boolean> {
-        try {
-            await this.getInstallation(workspaceSlug);
-            return true;
-        } catch {
-            return false;
-        }
+        const installation = await this.getInstallation(workspaceSlug);
+        return installation !== null;
     }
 }

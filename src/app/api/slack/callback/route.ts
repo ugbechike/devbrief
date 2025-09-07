@@ -54,6 +54,8 @@ export async function GET(request: NextRequest) {
                 bot_user_id: tokenData.bot_user_id,
                 scope: tokenData.scope,
                 installed_at: new Date().toISOString(),
+            }, {
+                onConflict: 'workspace_slug'
             });
 
         if (dbError) {
