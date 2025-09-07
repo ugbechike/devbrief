@@ -44,7 +44,15 @@ export async function GET(request: NextRequest) {
         }
 
         // Store the Slack installation data in your database
-        const { error: dbError } = await supabaseAdmin
+        console.log('Attempting to save Slack installation for workspace:', state);
+        console.log('Token data:', {
+            team_id: tokenData.team?.id,
+            team_name: tokenData.team?.name,
+            bot_user_id: tokenData.bot_user_id,
+            scope: tokenData.scope
+        });
+
+        const { data: upsertData, error: dbError } = await supabaseAdmin
             .from('slack_installations')
             .upsert({
                 workspace_slug: state,
@@ -59,11 +67,19 @@ export async function GET(request: NextRequest) {
             });
 
         if (dbError) {
-            console.error('Database error:', dbError);
+            console.error('Database error details:', {
+                error: dbError,
+                message: dbError.message,
+                details: dbError.details,
+                hint: dbError.hint,
+                code: dbError.code
+            });
             return NextResponse.redirect(
                 `https://devbrief-ten.vercel.app/dashboard/${state}?error=database_error`
             );
         }
+
+        console.log('Successfully saved Slack installation:', upsertData);
 
         // Redirect back to dashboard with success
         return NextResponse.redirect(

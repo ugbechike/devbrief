@@ -16,18 +16,15 @@ export class SlackService {
             const { data, error } = await supabase
                 .from('slack_installations')
                 .select('*')
-                .eq('workspace_slug', workspaceSlug)
-                .single();
+                .eq('workspace_slug', workspaceSlug);
 
             if (error) {
-                // Don't log errors for missing installations - this is normal
-                if (error.code !== 'PGRST116') {
-                    console.error('Error fetching Slack installation:', error);
-                }
+                console.error('Error fetching Slack installation:', error);
                 return null;
             }
 
-            return data;
+            // Return the first record if it exists, otherwise null
+            return data && data.length > 0 ? data[0] : null;
         } catch (error) {
             console.error('SlackService.getInstallation error:', error);
             return null;

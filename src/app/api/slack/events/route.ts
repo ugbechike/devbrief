@@ -142,19 +142,19 @@ export async function POST(request: NextRequest) {
             }
 
             // Get workspace slug from team_id
-            const { data: installation, error: installError } = await supabaseAdmin
+            const { data: installations, error: installError } = await supabaseAdmin
                 .from('slack_installations')
                 .select('workspace_slug, access_token')
-                .eq('team_id', event.team_id)
-                .single();
+                .eq('team_id', event.team_id);
 
             if (installError) {
                 console.error('Error fetching installation:', installError);
                 return NextResponse.json({ error: 'Database error' }, { status: 500 });
             }
 
+            const installation = installations && installations.length > 0 ? installations[0] : null;
             if (!installation) {
-                console.error('No Slack installation found for team:', event.team_id);
+                console.log('No Slack installation found for team:', event.team_id);
                 return NextResponse.json({ error: 'Installation not found' }, { status: 404 });
             }
 
@@ -174,13 +174,17 @@ export async function POST(request: NextRequest) {
                     console.log('User opened app home:', slackEvent.user);
 
                     // Check if user has provided GitHub email
-                    const { data: userData } = await supabaseAdmin
+                    const { data: userDataArray, error: userError } = await supabaseAdmin
                         .from('slack_users')
                         .select('github_email, first_interaction_at')
                         .eq('workspace_slug', installation.workspace_slug)
-                        .eq('slack_user_id', slackEvent.user)
-                        .single();
+                        .eq('slack_user_id', slackEvent.user);
 
+                    if (userError) {
+                        console.error('Error fetching user data:', userError);
+                    }
+
+                    const userData = userDataArray && userDataArray.length > 0 ? userDataArray[0] : null;
                     console.log('User data from DB:', userData);
 
                     const hasGitHubEmail = userData?.github_email;

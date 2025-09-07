@@ -54,11 +54,16 @@ export const Dashboard = ({ slug }: { slug: string }) => {
   const { data: workspaceData } = useQuery({
     queryKey: ["workspace", decodedSlug],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("workspace")
         .select("*")
         .eq("slug", decodedSlug)
         .single();
+
+      if (error && error.code !== "PGRST116") {
+        console.error("Error fetching workspace:", error);
+      }
+
       return data;
     },
     enabled: !!decodedSlug,
