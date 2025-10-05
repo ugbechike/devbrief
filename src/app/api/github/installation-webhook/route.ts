@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
         const eventType = request.headers.get('x-github-event');
 
         console.log('Installation webhook event type:', eventType);
+        console.log('Signature present:', !!signature);
+        console.log('Raw body length:', rawBody.length);
 
         // Verify webhook signature
         const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET;
@@ -30,8 +32,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 500 });
         }
 
-        if (!signature || !verifyGitHubSignature(rawBody, signature, webhookSecret)) {
+        console.log('Webhook secret configured:', !!webhookSecret);
+
+        if (!signature) {
+            console.error('No signature provided in webhook');
+            return NextResponse.json({ error: 'No signature provided' }, { status: 403 });
+        }
+
+        if (!verifyGitHubSignature(rawBody, signature, webhookSecret)) {
             console.error('Invalid webhook signature');
+            console.log('Expected signature format: sha256=<hash>');
+            console.log('Received signature:', signature);
             return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
         }
 
