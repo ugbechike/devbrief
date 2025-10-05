@@ -35,9 +35,11 @@ Your GitHub App should be configured with:
 - **Webhook URL**: `https://devbrief-ten.vercel.app/api/github-webhook`
 - **Webhook Secret**: Use the same value as `GITHUB_WEBHOOK_SECRET`
 - **Events**: Subscribe to:
-  - `Pull requests` events
+  - `Pull requests` events (for PR merge notifications)
   - `Installation` events (for app installation/uninstallation)
   - `Installation repositories` events (for repo access changes)
+
+**Note**: All webhook events are handled by the single `/api/github-webhook` endpoint, which routes different event types to appropriate handlers.
 
 ### Permissions
 - **Repository permissions**:
@@ -75,3 +77,5 @@ The GitHub integration is now ready! The system will:
 - **Installation fails**: Check GitHub App ID and callback URL
 - **No repositories found**: Verify GitHub App has access to repositories
 - **Webhook not received**: Check webhook URL and secret configuration
+- **Installation data not stored**: Ensure webhook URL points to `/api/github-webhook` and includes Installation events
+- **Signature verification fails**: Verify `GITHUB_WEBHOOK_SECRET` environment variable matches GitHub App webhook secret
